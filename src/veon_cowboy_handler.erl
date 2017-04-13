@@ -54,7 +54,7 @@ content_types_accepted(Req, State) ->
 % send server response
 %-------------------------
 respond(Req, [Type]) ->
-  Response = process_request(Type, Req),
+  Response = process_request(Type, cowboy_req:method(Req)),
 
   ResponseHeaders = [
     {<<"content-type">>, <<"application/json">>},
@@ -70,15 +70,15 @@ respond(Req, [Type]) ->
 %%%===============================================
 
 % add movie
-process_request(movie_add, Req) ->
+process_request(movie_add, {<<"POST">>, Req}) ->
 
   [{resp, ok}];
 % get movie
-process_request(movie_get, _Req) ->
+process_request(movie_get, {<<"GET">>, Req}) ->
   [{resp, ok}];
 
 %
-process_request(movie_book, Req) ->
+process_request(movie_book,  {<<"POST">>, Req}) ->
   %{ok, EventJson, _Req} = cowboy_req:body(Req),
   %Nodes = nodes(),
   %[{Node, rpc:cast(Node, screen_game_event_starter, do_event, [EventJson])} || Node <-Nodes],
