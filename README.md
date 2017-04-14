@@ -1,12 +1,16 @@
-veon
+Test task for VEON
 =====
 
-An OTP application
+An OTP application for basic management of movies and seats
 
 Build
 -----
 
     $ rebar3 compile
+    
+Run
+-----
+
     $ erl -pa _build/default/lib/*/ebin -s veon
 
 
