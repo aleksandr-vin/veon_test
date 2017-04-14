@@ -71,10 +71,17 @@ respond(Req, [Type]) ->
 
 % add movie
 process_request(movie_add, {<<"POST">>, Req}) ->
+  {ok, Json, _Req} = cowboy_req:body(Req),
 
-  [{resp, ok}];
+  case veon_movie:new(from_json(Json)) of
+    {ok, _} -> [{resp, ok}];
+    {error, Errors} -> [{app_error, maps:to_list(Errors)}]
+  end;
+
+
 % get movie
 process_request(movie_get, {<<"GET">>, Req}) ->
+
   [{resp, ok}];
 
 %
@@ -94,6 +101,8 @@ process_request(_Type, _Req) ->
 %-------------------------
 % Calculate status to http response
 %-------------------------
+http_status([{app_error, _}]) ->
+  400;
 http_status([{error, _Reason}]) ->
   404;
 http_status(_) ->
@@ -104,3 +113,10 @@ http_status(_) ->
 %-------------------------
 to_json(Data) ->
   mochijson2:encode(Data).
+
+%-------------------------
+% Transform JSON to proplist
+%-------------------------
+from_json(Json) ->
+  {struct, JsonData} = mochijson2:decode(Json),
+  JsonData.

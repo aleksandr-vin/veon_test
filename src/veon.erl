@@ -16,7 +16,7 @@
   stop/0
 ]).
 
--define(APPS, [crypto, cowlib, ranch, cowboy, mnesia, veon]).
+-define(APPS, [inets, crypto, cowlib, ranch, cowboy, mnesia, veon]).
 
 %% ===================================================================
 %% API functions
