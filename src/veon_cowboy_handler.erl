@@ -1,6 +1,5 @@
 %%%-------------------------------------------------------------------
 %%% @author konstantin.shamko
-%%% @copyright (C) 2017, Oxagile LLC
 %%% @doc
 %%%
 %%% @end
@@ -9,8 +8,6 @@
 -module(veon_cowboy_handler).
 -author("konstantin.shamko").
 
-
-% -include("../include/screen_response_types.hrl").
 
 -export([init/3, rest_init/2]).
 -export([
@@ -74,23 +71,37 @@ process_request(movie_add, {<<"POST">>, Req}) ->
   {ok, Json, _Req} = cowboy_req:body(Req),
 
   case veon_movie:new(from_json(Json)) of
-    {ok, _} -> [{resp, ok}];
+    {ok, Movie} ->
+      veon_movie:movie_save(Movie),
+      [{resp, ok}];
     {error, Errors} -> [{app_error, maps:to_list(Errors)}]
   end;
 
-
 % get movie
 process_request(movie_get, {<<"GET">>, Req}) ->
+  {ImdbId, _} = cowboy_req:binding(imdbid, Req),
+  {ScreenId, _} = cowboy_req:binding(screenid, Req),
 
-  [{resp, ok}];
 
-%
+  case veon_movie:movie_get(ImdbId, ScreenId) of
+    [] -> [{error, movie_not_found}];
+    Movie -> Movie
+  end;
+
+% book a seat
 process_request(movie_book,  {<<"POST">>, Req}) ->
-  %{ok, EventJson, _Req} = cowboy_req:body(Req),
-  %Nodes = nodes(),
-  %[{Node, rpc:cast(Node, screen_game_event_starter, do_event, [EventJson])} || Node <-Nodes],
-  %screen_game_event_starter:do_event(EventJson),
-  [{status, ok}];
+  {ok, JsonString, _} = cowboy_req:body(Req),
+  Json = from_json(JsonString),
+  ImdbId = proplists:get_value(<<"imdbId">>, Json),
+  ScreenId = proplists:get_value(<<"screenId">>, Json),
+
+  case veon_movie:movie_book(ImdbId, ScreenId) of
+    {atomic, {error, Error}} -> [{app_error, Error}];
+    {atomic, {ok, Message}} -> [{resp, Message}];
+    _ ->
+      {app_error, unknown_error}
+  end;
+
 %-------------------------
 % catch all other messages
 %-------------------------

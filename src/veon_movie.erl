@@ -1,6 +1,5 @@
 %%%-------------------------------------------------------------------
 %%% @author konstantin.shamko
-%%% @copyright (C) 2017, Oxagile LLC
 %%% @doc
 %%%
 %%% @end
@@ -10,9 +9,19 @@
 -author("konstantin.shamko").
 
 %% API
--export([new/1, movie_save/1, movie_book/2, movie_get/2]).
+-export([init_table/0, new/1, movie_save/1, movie_book/2, movie_get/2]).
 
--record(movie, {imdbId, screenId, movieTitle, seatsAvailable, seatsReserved }).
+%%---------------------------------------------------------------------
+%% Data Type: movie
+%% where:
+%%    id: Unique field to identify movie: tuple {imdbId, screenId}
+%%    imdbId: String with movie id from imdb
+%%    screenId: String with externally managed screen id
+%%    movieTitle: String with move title. Found by imdb id via 3rd party API
+%%    seatsAvailable: Integer with number of available seats
+%%    seatsReserved: Integer with number of reserved seats
+%%----------------------------------------------------------------------
+-record(movie, {id, imdbId, screenId, movieTitle, seatsAvailable, seatsReserved }).
 
 %===========================================
 %
@@ -20,9 +29,23 @@
 %
 %===========================================
 
-%---------------------------
-% Create new movie entity
-%---------------------------
+%------------------
+% Create mnesia table
+%------------------
+init_table() ->
+  mnesia:create_table(movie, [
+    {attributes, record_info(fields, movie)},
+    {type, set}
+  ]).
+
+
+%%----------------------------------------------------------------------
+%% Function: new/1
+%% Purpose: Create new movie entity
+%% Args:   JsonData - proplist (http://erlang.org/doc/man/proplists.html) generated from input JSON
+%% Returns: A tuple of {ok, Movie} - Movie is a #movie record
+%%     or {error, Errors} - Errors - map with fields and associated errors
+%%----------------------------------------------------------------------
 new(JsonData) ->
   Errors = maps:new(),
   Movie = maps:new(),
@@ -32,27 +55,76 @@ new(JsonData) ->
   {_, Movie3, Errors3} = init_field(seatsAvailable, proplists:get_value(<<"availableSeats">>, JsonData), Movie2, Errors2),
 
   case maps:size(Errors3) of
-    0 -> {ok, Movie3};
+    0 ->
+      M = #movie{
+        id = {maps:get(imdbId, Movie3),maps:get(screenId, Movie3)},
+        imdbId = maps:get(imdbId, Movie3),
+        screenId = maps:get(screenId, Movie3),
+        movieTitle = maps:get(movieTitle, Movie3),
+        seatsAvailable = maps:get(seatsAvailable, Movie3),
+        seatsReserved = 0
+      },
+      {ok, M};
     _ -> {error, Errors3}
   end.
 
-%-----------------------
-% Save movie to mnesia
-%-----------------------
+%%----------------------------------------------------------------------
+%% Function: movie_save/1
+%% Purpose: Save movie to mnesia
+%% Args:   Movie - #movie record. basically it can be initiated with new/1
+%% Returns: ok | exit({aborted, Reason})
+%%----------------------------------------------------------------------
 movie_save(Movie) ->
-  ok.
+  mnesia:dirty_write(Movie).
 
-%-----------------------
-% Book a tiket. Update data in mnesia
-%-----------------------
+
+%%----------------------------------------------------------------------
+%% Function: movie_book/2
+%% Purpose: Book a tiket. Update data in mnesia
+%% Args:   ImdbId - String with movie id from imdb
+%%         ScreenId - String with externally managed screen id
+%% Returns: {ok, Message} | {error, message}
+%%----------------------------------------------------------------------
 movie_book(ImdbId, ScreenId) ->
-  ok.
 
-%-----------------------
-% Get movie info. Read from mnesia
-%-----------------------
+  F = fun() ->
+
+      case mnesia:wread({movie, {ImdbId, ScreenId}}) of
+        [] -> {error, movie_not_found};
+        [Movie] ->
+          ReservedSeats = Movie#movie.seatsReserved + 1,
+          if
+            ReservedSeats =< Movie#movie.seatsAvailable ->
+              mnesia:write(Movie#movie{seatsReserved = ReservedSeats}),
+              {ok, seat_reserved};
+            true -> {error, no_available_seats}
+          end
+      end
+    end,
+
+  mnesia:transaction(F).
+
+%%----------------------------------------------------------------------
+%% Function: movie_get/2
+%% Purpose: Get movie info. Read from mnesia
+%% Args:   ImdbId - String with movie id from imdb
+%%         ScreenId - String with externally managed screen id
+%% Returns: List with movie data | Empty list
+%%----------------------------------------------------------------------
 movie_get(ImdbId, ScreenId) ->
-  ok.
+
+  case mnesia:dirty_read(movie, {ImdbId, ScreenId}) of
+    [] -> [];
+    [Movie] ->
+      [
+        {imdbId, Movie#movie.imdbId},
+        {screenId, Movie#movie.screenId},
+        {movieTitle, Movie#movie.movieTitle},
+        {availableSeats, Movie#movie.seatsAvailable},
+        {reservedSeats, Movie#movie.seatsReserved}
+      ]
+  end.
+
 
 
 %===========================================

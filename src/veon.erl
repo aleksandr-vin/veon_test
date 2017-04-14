@@ -1,13 +1,11 @@
 %%%-------------------------------------------------------------------
 %%% @author konstantin.shamko
-%%% @copyright (C) 2017, Oxagile LLC
 %%% @doc
 %%%
 %%% @end
 %%% Created : 13. Apr 2017 4:18 PM
 %%%-------------------------------------------------------------------
 -module(veon).
--author("konstantin.shamko").
 -author("konstantin.shamko").
 
 %% API

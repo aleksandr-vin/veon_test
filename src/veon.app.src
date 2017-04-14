@@ -5,7 +5,10 @@
   {mod, { veon_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    inets,
+    cowboy,
+    mnesia
    ]},
   {env,[]},
   {modules, []},
