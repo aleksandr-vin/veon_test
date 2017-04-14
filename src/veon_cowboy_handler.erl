@@ -69,12 +69,19 @@ respond(Req, [Type]) ->
 % add movie
 process_request(movie_add, {<<"POST">>, Req}) ->
   {ok, Json, _Req} = cowboy_req:body(Req),
+  JsonData = from_json(Json),
 
-  case veon_movie:new(from_json(Json)) of
-    {ok, Movie} ->
+  ExistMovie = veon_movie:movie_get(
+    proplists:get_value(<<"imdbId">>, JsonData),
+    proplists:get_value(<<"screenId">>, JsonData)
+  ),
+
+  case {veon_movie:new(JsonData), ExistMovie} of
+    {{ok, Movie},[]} ->
       veon_movie:movie_save(Movie),
       [{resp, ok}];
-    {error, Errors} -> [{app_error, maps:to_list(Errors)}]
+    {{error, Errors},_} -> [{app_error, maps:to_list(Errors)}];
+    {_,_} -> [{app_error, movie_exists }]
   end;
 
 % get movie

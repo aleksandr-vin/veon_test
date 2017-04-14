@@ -47,6 +47,7 @@ init_table() ->
 %%     or {error, Errors} - Errors - map with fields and associated errors
 %%----------------------------------------------------------------------
 new(JsonData) ->
+
   Errors = maps:new(),
   Movie = maps:new(),
 
